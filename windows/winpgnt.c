@@ -865,6 +865,24 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if (passphrase_box)
 		SendMessage(passphrase_box, WM_CLOSE, 0, 0);
 	    SendMessage(hwnd, WM_CLOSE, 0, 0);
+
+        // GD: For some reasons, just sending a close message does not exit cleanly
+        //     This patch is copied from the main exit function at the bottom of this file
+
+        /* Clean up the system tray icon */
+        {
+            NOTIFYICONDATA tnid;
+
+            tnid.cbSize = sizeof(NOTIFYICONDATA);
+            tnid.hWnd = hwnd;
+            tnid.uID = 1;
+
+            Shell_NotifyIcon(NIM_DELETE, &tnid);
+
+            DestroyMenu(systray_menu);
+        }
+        // GD: End of modification
+
 	    break;
 	  case IDM_VIEWKEYS:
 	    if (!keylist) {
@@ -1194,7 +1212,23 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    else
 		command = "";
 	    break;
-	} else {
+	} else
+        // GD: Adding a new option -x <add-passphrase>
+        //     to add individual plaintext passphrases to the internal list
+        //     to avoid user prompting.
+        if (!strcmp(argv[i], "-x"))
+        {
+            char *p;
+            i++;                        // Next argument is a passphrase
+                                        // Yes - no error checks since git4win is the only process using it
+#if 0
+            p = (char*)calloc(1, strlen(argv[i]) + 1);
+            memcpy(p, argv[i], strlen(argv[i]));
+            addpos234(passphrases, p, 0);
+#endif
+            // GD: End of modification
+        } else
+        {
             Filename *fn = filename_from_str(argv[i]);
 	    win_add_keyfile(fn);
             filename_free(fn);
